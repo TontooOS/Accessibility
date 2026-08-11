@@ -1,4 +1,4 @@
-# TontooAccessibility
+# Tontoo Accessibility
 
 A simple Rust internationalization (i18n) library for embedding translations in other projects.
 
