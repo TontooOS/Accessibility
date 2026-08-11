@@ -80,7 +80,7 @@ pub unsafe extern "C" fn accessibility_translate(
 /// The returned pointer is static and must NOT be freed.
 #[no_mangle]
 pub extern "C" fn accessibility_version() -> *const c_char {
-    concat!("0.1.0", "\0").as_ptr() as *const c_char
+    concat!("26.1", "\0").as_ptr() as *const c_char
 }
 
 /// Free a string previously returned by `accessibility_translate`.

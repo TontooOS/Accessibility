@@ -1,6 +1,6 @@
 [package]
 name = "accessibility"
-version = "26.1"
+version = "26.1.0"
 edition = "2021"
 description = "Rust i18n library for embedding in TontooOS"
 license = "TCL"
