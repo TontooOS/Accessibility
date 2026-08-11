@@ -1,10 +1,10 @@
 [package]
 name = "accessibility"
-version = "0.1.0"
+version = "26.1"
 edition = "2021"
 description = "Rust i18n library for embedding in TontooOS"
-license = "MIT"
-repository = "https://github.com/TontooOS/Libs"
+license = "TCL"
+repository = "https://github.com/TontooOS/Accessibility"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
