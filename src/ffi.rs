@@ -4,7 +4,6 @@
 //! so that non-Rust programs (C, C++, Python via ctypes, etc.) can use
 //! the Accessibility framework.
 
-use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::sync::Mutex;
@@ -36,7 +35,7 @@ pub unsafe extern "C" fn accessibility_init(fallback: *const c_char) -> i32 {
         Err(_) => return -2,
     };
 
-    let result = with_lang(|| super::init_lang(&fallback_str));
+    let result = with_lang(|| crate::init_lang(&fallback_str));
 
     match result {
         Ok(()) => 0,
@@ -70,9 +69,7 @@ pub unsafe extern "C" fn accessibility_translate(
 
     let result = with_lang(|| {
         let store = crate::LangStore::instance();
-        store
-            .t(lang_str, key_str, None)
-            .unwrap_or_else(|| key_str.to_string())
+        store.t(lang_str, key_str, None).unwrap_or_else(|| key_str.to_string())
     });
 
     CString::new(result).unwrap_or_default().into_raw()
@@ -117,7 +114,8 @@ pub unsafe extern "C" fn accessibility_lang_at(index: i32) -> *const c_char {
     if index < 0 || index >= langs.len() as i32 {
         return std::ptr::null();
     }
-    CString::new(langs[index as usize])
-        .unwrap_or_default()
-        .into_raw() as *const c_char
+    match CString::new(langs[index as usize]) {
+        Ok(cstr) => cstr.into_raw(),
+        Err(_) => std::ptr::null(),
+    }
 }
