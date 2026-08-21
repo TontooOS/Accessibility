@@ -12,7 +12,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-accessibility = { path = "/Library/System/accessibility.library" }
+accessibility = { path = "/Library/System/accessibility" }
 ```
 
 ## License
