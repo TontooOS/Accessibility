@@ -12,7 +12,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-accessibility = { path = "/Library/System/accessibility" }
+sdk = { path = "/Library/System/sdk", features = ["Accessibility"] }
+```
+
+Then at the crate root:
+
+```rust
+sdk::preinclude!();
+use Accessibility::{ /* ... */ };
 ```
 
 ## License
