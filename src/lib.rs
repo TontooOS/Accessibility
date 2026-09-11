@@ -10,18 +10,46 @@ use std::path::Path;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+/// Resolve the language files directory at runtime.
+///
+/// Priority: `$ACCESSIBILITY_LANG_DIR` override, LiveOS sidecar
+/// (`/Library/System/accessibility.resources/lang`), staged sources
+/// (`/Library/System/accessibility/lang`), then the relative crate dir
+/// (`./lang`, dev / `cargo run`). Falls back to `./lang` when nothing exists
+/// so dev behaviour (auto-create + example files) is preserved.
+pub fn resolve_lang_dir() -> std::path::PathBuf {
+    let mut candidates = Vec::new();
+    if let Ok(env) = std::env::var("ACCESSIBILITY_LANG_DIR") {
+        let p = std::path::PathBuf::from(env);
+        if !p.as_os_str().is_empty() {
+            candidates.push(p);
+        }
+    }
+    candidates.push(std::path::PathBuf::from(
+        "/Library/System/accessibility.resources/lang",
+    ));
+    candidates.push(std::path::PathBuf::from("/Library/System/accessibility/lang"));
+    candidates.push(std::path::PathBuf::from("./lang"));
+    for c in &candidates {
+        if c.exists() {
+            return c.clone();
+        }
+    }
+    std::path::PathBuf::from("./lang")
+}
+
 /// Initialize the library by loading language files from the `lang/` directory.
 /// This should be called once at application startup.
 pub fn init_lang(fallback: &str) -> Result<(), LangError> {
-    let lang_dir = Path::new("./lang");
+    let lang_dir = resolve_lang_dir();
 
     if !lang_dir.exists() {
-        std::fs::create_dir_all(lang_dir)?;
+        std::fs::create_dir_all(&lang_dir)?;
     }
 
     let mut files: Vec<LangFile> = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(lang_dir) {
+    if let Ok(entries) = std::fs::read_dir(&lang_dir) {
         for entry in entries {
             let entry = entry?;
             let path = entry.path();
@@ -159,7 +187,7 @@ impl LangFile {
     }
 
     pub fn file_path(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from(format!("./lang/{}.json", self.lang))
+        resolve_lang_dir().join(format!("{}.json", self.lang))
     }
 
     pub fn t(&self, key: &str, args: Option<&std::collections::HashMap<String, String>>) -> Option<String> {
