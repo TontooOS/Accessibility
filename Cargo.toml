@@ -7,7 +7,7 @@ license = "TCL"
 repository = "https://github.com/TontooOS/Accessibility"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["dylib"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
