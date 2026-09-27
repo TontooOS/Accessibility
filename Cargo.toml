@@ -10,9 +10,5 @@ repository = "https://github.com/TontooOS/Accessibility"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# serde derive is still required: Foundation's JSONSerialization API is generic
-# over Serialize/DeserializeOwned, so LangFile must derive them.
-# serde_json + once_cell are replaced (Foundation API + std OnceLock).
-serde = { version = "1.0", features = ["derive"] }
 foundation = { path = "../Foundation" }
 

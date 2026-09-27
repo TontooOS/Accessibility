@@ -8,7 +8,6 @@ pub mod ffi;
 use std::collections::HashMap;
 use std::path::Path;
 use foundation::serialization::JSONSerialization;
-use serde::{Deserialize, Serialize};
 
 /// Resolve the language files directory at runtime.
 ///
@@ -68,22 +67,21 @@ pub fn init_lang(fallback: &str) -> Result<(), LangError> {
 /// Validate a language file JSON structure without loading it.
 /// Returns Ok(()) if valid, Err with description if invalid.
 ///
-/// Uses Foundation's JSONSerialization API (no direct serde_json usage).
+/// Uses Foundation's std-only JSON helpers (no serde usage in this crate).
 pub fn validate_lang_file<P: AsRef<Path>>(path: P) -> Result<(), LangError> {
     let data = std::fs::read_to_string(path.as_ref())?;
     if !JSONSerialization::is_valid_json(&data) {
         return Err(LangError::Json("Root must be a JSON object".to_string()));
     }
 
-    // Foundation parses the file; serde structure errors surface as Json errors.
-    let file = JSONSerialization::from_string::<LangFile>(&data)?;
+    let (lang, translations) = JSONSerialization::parse_lang_file(&data)?;
 
-    if file.lang.is_empty() {
+    if lang.is_empty() {
         return Err(LangError::Lang("Missing 'lang' field".to_string()));
     }
-    validate_lang_name(&file.lang)?;
+    validate_lang_name(&lang)?;
 
-    for key in file.translations.keys() {
+    for key in translations.keys() {
         if key.is_empty() {
             return Err(LangError::Lang("Translation key cannot be empty".to_string()));
         }
@@ -131,11 +129,8 @@ pub fn setup_lang_dir<P: AsRef<Path>>(dest: P) -> Result<(), LangError> {
     map_de.insert("button.ok".to_string(), "OK".to_string());
     map_de.insert("button.cancel".to_string(), "Abbrechen".to_string());
 
-    let example_en = LangFile::new("en_us", map_en);
-    let example_de = LangFile::new("de_de", map_de);
-
-    let json_en = JSONSerialization::to_pretty_string(&example_en)?;
-    let json_de = JSONSerialization::to_pretty_string(&example_de)?;
+    let json_en = JSONSerialization::stringify_lang_file("en_us", &map_en, true)?;
+    let json_de = JSONSerialization::stringify_lang_file("de_de", &map_de, true)?;
 
     std::fs::write(dest.join("en_us.json"), json_en)?;
     std::fs::write(dest.join("de_de.json"), json_de)?;
@@ -143,7 +138,7 @@ pub fn setup_lang_dir<P: AsRef<Path>>(dest: P) -> Result<(), LangError> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct LangFile {
     pub lang: String,
     pub translations: HashMap<String, String>,
@@ -172,13 +167,13 @@ impl LangFile {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, LangError> {
         let data = std::fs::read_to_string(path.as_ref())?;
-        let lang_file = JSONSerialization::from_string::<LangFile>(&data)?;
-        verify_no_percent(lang_file.lang.as_str())?;
-        Ok(lang_file)
+        let (lang, translations) = JSONSerialization::parse_lang_file(&data)?;
+        verify_no_percent(lang.as_str())?;
+        Ok(Self::new(lang, translations))
     }
 
     pub fn write(&self) -> Result<(), LangError> {
-        let json = JSONSerialization::to_pretty_string(self)?;
+        let json = JSONSerialization::stringify_lang_file(&self.lang, &self.translations, true)?;
         std::fs::write(self.file_path(), json)?;
         Ok(())
     }

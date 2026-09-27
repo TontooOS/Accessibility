@@ -1,10 +1,13 @@
 # LangFile
 
-`LangFile` represents a single language loaded from a JSON file. It is a serializable
-struct used both for reading files from disk and for writing them back.
+`LangFile` represents a single language loaded from a JSON file. It is a plain
+struct (no `serde` derive) used both for reading files from disk and for writing
+them back. JSON parsing and serialization run through Foundation's std-only
+`JSONSerialization` helpers (`parse_lang_file`, `stringify_lang_file`), so this
+crate has no `serde` dependency.
 
 ```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct LangFile {
     pub lang: String,
     pub translations: HashMap<String, String>,

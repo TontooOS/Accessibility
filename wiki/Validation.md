@@ -24,8 +24,9 @@ pub enum LangError {
 `LangError` implements `Display` (`"IO error: ..."`, `"JSON error: ..."`,
 `"Lang error: ..."`) and `std::error::Error`, and converts automatically from
 `std::io::Error` and `foundation::error::FoundationError` via `From`.
-JSON parsing and serialization run through Foundation's `JSONSerialization` API,
-so `accessibility` has no direct `serde_json` dependency.
+JSON parsing and serialization run through Foundation's std-only
+`JSONSerialization` helpers, so `accessibility` has no `serde` or `serde_json`
+dependency.
 
 ## Validation Functions
 
