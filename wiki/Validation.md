@@ -10,7 +10,7 @@ Every fallible operation in the library returns `Result<_, LangError>`.
 #[derive(Debug)]
 pub enum LangError {
     Io(std::io::Error),
-    Json(serde_json::Error),
+    Json(String),
     Lang(String),
 }
 ```
@@ -23,19 +23,22 @@ pub enum LangError {
 
 `LangError` implements `Display` (`"IO error: ..."`, `"JSON error: ..."`,
 `"Lang error: ..."`) and `std::error::Error`, and converts automatically from
-`std::io::Error` and `serde_json::Error` via `From`.
+`std::io::Error` and `foundation::error::FoundationError` via `From`.
+JSON parsing and serialization run through Foundation's `JSONSerialization` API,
+so `accessibility` has no direct `serde_json` dependency.
 
 ## Validation Functions
 
 ### `validate_lang_file(path)`
 
-Validates a single JSON language file without loading it:
+Validates a single JSON language file without loading it. Parsing uses
+Foundation's `JSONSerialization` API:
 
-1. The document must be a JSON object.
-2. It must contain a `lang` field.
-3. It must contain a `translations` field.
-4. The `lang` code is validated via `validate_lang_name`.
-5. Every translation key must be non-empty.
+1. The document must be valid JSON (`JSONSerialization::is_valid_json`).
+2. It must deserialize into a `LangFile` (`JSONSerialization::from_string`),
+   which enforces the `lang` and `translations` fields.
+3. The `lang` code is validated via `validate_lang_name`.
+4. Every translation key must be non-empty.
 
 Returns `Ok(())` when valid, or a `LangError` describing the problem.
 

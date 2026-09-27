@@ -7,7 +7,7 @@ pub mod ffi;
 
 use std::collections::HashMap;
 use std::path::Path;
-use once_cell::sync::Lazy;
+use foundation::serialization::JSONSerialization;
 use serde::{Deserialize, Serialize};
 
 /// Resolve the language files directory at runtime.
@@ -67,29 +67,23 @@ pub fn init_lang(fallback: &str) -> Result<(), LangError> {
 
 /// Validate a language file JSON structure without loading it.
 /// Returns Ok(()) if valid, Err with description if invalid.
+///
+/// Uses Foundation's JSONSerialization API (no direct serde_json usage).
 pub fn validate_lang_file<P: AsRef<Path>>(path: P) -> Result<(), LangError> {
     let data = std::fs::read_to_string(path.as_ref())?;
-    let value = serde_json::from_str::<serde_json::Value>(&data)?;
-
-    if !value.is_object() {
-        return Err(LangError::Lang("Root must be an object".to_string()));
+    if !JSONSerialization::is_valid_json(&data) {
+        return Err(LangError::Json("Root must be a JSON object".to_string()));
     }
 
-    let obj = value.as_object().unwrap();
+    // Foundation parses the file; serde structure errors surface as Json errors.
+    let file = JSONSerialization::from_string::<LangFile>(&data)?;
 
-    if !obj.contains_key("lang") {
+    if file.lang.is_empty() {
         return Err(LangError::Lang("Missing 'lang' field".to_string()));
     }
+    validate_lang_name(&file.lang)?;
 
-    if !obj.contains_key("translations") {
-        return Err(LangError::Lang("Missing 'translations' field".to_string()));
-    }
-
-    let lang = obj.get("lang").and_then(|v| v.as_str()).unwrap();
-    validate_lang_name(lang)?;
-
-    let translations = obj.get("translations").and_then(|v| v.as_object()).unwrap();
-    for (key, _) in translations {
+    for key in file.translations.keys() {
         if key.is_empty() {
             return Err(LangError::Lang("Translation key cannot be empty".to_string()));
         }
@@ -140,8 +134,8 @@ pub fn setup_lang_dir<P: AsRef<Path>>(dest: P) -> Result<(), LangError> {
     let example_en = LangFile::new("en_us", map_en);
     let example_de = LangFile::new("de_de", map_de);
 
-    let json_en = serde_json::to_string_pretty(&example_en)?;
-    let json_de = serde_json::to_string_pretty(&example_de)?;
+    let json_en = JSONSerialization::to_pretty_string(&example_en)?;
+    let json_de = JSONSerialization::to_pretty_string(&example_de)?;
 
     std::fs::write(dest.join("en_us.json"), json_en)?;
     std::fs::write(dest.join("de_de.json"), json_de)?;
@@ -161,9 +155,12 @@ pub struct LangStore {
     fallback: Option<String>,
 }
 
-static LANG_STORE: Lazy<std::sync::Mutex<LangStore>> = Lazy::new(|| {
-    std::sync::Mutex::new(LangStore::default())
-});
+static LANG_STORE: std::sync::OnceLock<std::sync::Mutex<LangStore>> =
+    std::sync::OnceLock::new();
+
+fn lang_store() -> &'static std::sync::Mutex<LangStore> {
+    LANG_STORE.get_or_init(|| std::sync::Mutex::new(LangStore::default()))
+}
 
 impl LangFile {
     pub fn new(lang: impl Into<String>, translations: impl Into<HashMap<String, String>>) -> Self {
@@ -175,13 +172,13 @@ impl LangFile {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, LangError> {
         let data = std::fs::read_to_string(path.as_ref())?;
-        let lang_file = serde_json::from_str::<LangFile>(&data)?;
+        let lang_file = JSONSerialization::from_string::<LangFile>(&data)?;
         verify_no_percent(lang_file.lang.as_str())?;
         Ok(lang_file)
     }
 
     pub fn write(&self) -> Result<(), LangError> {
-        let json = serde_json::to_string_pretty(self)?;
+        let json = JSONSerialization::to_pretty_string(self)?;
         std::fs::write(self.file_path(), json)?;
         Ok(())
     }
@@ -202,7 +199,7 @@ impl LangFile {
 
 impl LangStore {
     pub fn instance() -> std::sync::MutexGuard<'static, Self> {
-        LANG_STORE.lock().unwrap()
+        lang_store().lock().unwrap()
     }
 
     pub fn init(files: Vec<LangFile>, fallback: Option<String>) -> Result<(), LangError> {
@@ -257,7 +254,7 @@ impl LangStore {
 #[derive(Debug)]
 pub enum LangError {
     Io(std::io::Error),
-    Json(serde_json::Error),
+    Json(String),
     Lang(String),
 }
 
@@ -267,9 +264,9 @@ impl From<std::io::Error> for LangError {
     }
 }
 
-impl From<serde_json::Error> for LangError {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Json(e)
+impl From<foundation::error::FoundationError> for LangError {
+    fn from(e: foundation::error::FoundationError) -> Self {
+        Self::Json(e.to_string())
     }
 }
 
@@ -277,7 +274,7 @@ impl std::fmt::Display for LangError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(e) => write!(f, "IO error: {}", e),
-            Self::Json(e) => write!(f, "JSON error: {}", e),
+            Self::Json(m) => write!(f, "JSON error: {}", m),
             Self::Lang(m) => write!(f, "Lang error: {}", m),
         }
     }

@@ -16,7 +16,8 @@ pub struct LangStore {
 The store is a process-wide singleton behind a `Mutex`:
 
 ```rust
-static LANG_STORE: Lazy<std::sync::Mutex<LangStore>> = Lazy::new(...);
+static LANG_STORE: std::sync::OnceLock<std::sync::Mutex<LangStore>> =
+    std::sync::OnceLock::new();
 ```
 
 ### `LangStore::instance()`
