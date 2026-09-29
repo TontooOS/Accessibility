@@ -6,7 +6,7 @@ global in-memory store, and provides translations to both Rust code (via the
 `t!` macro) and C / C++ / Python programs (via the C FFI layer).
 
 - Repository: https://github.com/TontooOS/Accessibility
-- License: TCL v26.1
+- License: TCL v27.0
 - Version: 26.1
 
 ## Feature Index
